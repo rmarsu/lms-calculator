@@ -8,8 +8,6 @@ import (
 )
 
 func (h *Handler) calculateHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	var input domain.Input
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
