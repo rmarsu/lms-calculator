@@ -78,6 +78,20 @@ curl --request GET \
 {"error":"Only POST method is allowed"}
 ```
 
+cURL:
+```bash
+curl --location 'localhost:8080/api/v1/calculate' \
+--header 'Content-Type: application/json' \
+--data '{
+  "meow": "2 - 1"
+'
+```
+Ожидаемый ответ сервера:
+```json
+// код http 400
+{"error":"Bad request"}
+```
+
 
 
 
