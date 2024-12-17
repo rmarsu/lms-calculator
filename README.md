@@ -67,6 +67,19 @@ curl --location 'localhost:8080/api/v1/calculate' \
 
 cURL:
 ```bash
+curl --request GET \
+--url "http://localhost:8080/api/v1/calculate" \
+--header "Content-Type: application/json" \
+--data '{"expression":"1+1"}'
+```
+Ожидаемый ответ сервера:
+```json
+// код http 405
+{"error":"Only POST method is allowed"}
+```
+
+cURL:
+```bash
 curl --location 'localhost:8080/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -78,6 +91,8 @@ curl --location 'localhost:8080/api/v1/calculate' \
 // код http 400
 {"error":"Bad request"}
 ```
+
+
 
 
 
