@@ -134,7 +134,7 @@ func evaluateRPN(rpn []string) (float64, error) {
 	}
 
 	if len(stack) != 1 {
-		return 0, fmt.Errorf("это не выражение")
+		return 0, fmt.Errorf("не является выражением")
 	}
 
 	return stack[0], nil
