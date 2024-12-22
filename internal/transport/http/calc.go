@@ -16,7 +16,7 @@ func (h *Handler) calculateHandler(w http.ResponseWriter, r *http.Request) {
 		logger.Info(err)
 
 		w.WriteHeader(http.StatusBadRequest)
-		rjson.SendJson(w, domain.ErrResponse{Error: err.Error()})
+		rjson.SendJson(w, domain.ErrResponse{Error: domain.ErrInvalidJSON})
 		return
 	}
 

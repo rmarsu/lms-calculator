@@ -12,7 +12,7 @@ func CheckPOSTMethod(next http.HandlerFunc) http.HandlerFunc {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			rjson.SendJson(w, domain.ErrResponse{Error: "Only POST method is allowed"})
+			rjson.SendJson(w, domain.ErrResponse{Error: domain.ErrInvalidMethod})
 			return
 		}
 		next.ServeHTTP(w, r)

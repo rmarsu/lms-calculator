@@ -1,7 +1,6 @@
 package calc
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -76,7 +75,7 @@ func shuntingYard(tokens []string) ([]string, error) {
 				stack = stack[:len(stack)-1]
 			}
 			if len(stack) == 0 {
-				return nil, fmt.Errorf("неверно расставленные скобки")
+				return nil, ErrInvalidParentheses
 			}
 			stack = stack[:len(stack)-1]
 		default:
@@ -90,7 +89,7 @@ func shuntingYard(tokens []string) ([]string, error) {
 
 	for len(stack) > 0 {
 		if stack[len(stack)-1] == "(" {
-			return nil, fmt.Errorf("неверно расставленные скобки")
+			return nil, ErrInvalidParentheses
 		}
 		output = append(output, stack[len(stack)-1])
 		stack = stack[:len(stack)-1]
@@ -108,7 +107,7 @@ func evaluateRPN(rpn []string) (float64, error) {
 			stack = append(stack, num)
 		} else {
 			if len(stack) < 2 {
-				return 0, fmt.Errorf("не является выражением")
+				return 0, ErrInvalidExpression
 			}
 			b := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -125,7 +124,7 @@ func evaluateRPN(rpn []string) (float64, error) {
 				result = a * b
 			case "/":
 				if b == 0 {
-					return 0, fmt.Errorf("деление на 0")
+					return 0, ErrDivisionByZero
 				}
 				result = a / b
 			}
@@ -134,7 +133,7 @@ func evaluateRPN(rpn []string) (float64, error) {
 	}
 
 	if len(stack) != 1 {
-		return 0, fmt.Errorf("не является выражением")
+		return 0, ErrInvalidExpression
 	}
 
 	return stack[0], nil
