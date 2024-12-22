@@ -58,10 +58,10 @@ $ go run cmd/main.go
 
 | cURL команда                                   | Ответ                                     | *HTTP* код
 |------------------------------------------------|-------------------------------------------| ----------------------------- |
-| ```curl --location 'localhost:8080/api/v1/calculate' \ --header 'content-type: application/json' \ --data '{ "expression": "2+2*2" }'```  | ```{"result":6} ``` | 200 |
-| ```curl --location 'localhost:8080/api/v1/calculate' \ --header 'content-type: application/json' \ --data '{ "expression": "2 -" }'``` | ```{"error":"это не выражение"}```|422|
-| ```curl --request GET \ --url "http://localhost:8080/api/v1/calculate" \ --header "Content-Type: application/json" \ --data '{"expression":"1+1"}'``` | ```{"error":"Only POST method is allowed"}```|405|
-| ```curl --location 'localhost:8080/api/v1/calculate' \ --header 'Content-Type: application/json' \ --data '{ "meow": "2 - 1" '``` | ```{"error":"Bad request"}```|400|
+| ```curl -XPOST -d '{ "expression" : "2 + 2*2"}' 'http://localhost:8080/api/v1/calculate'```  | ```{"result":6} ``` | 200 |
+| ```curl -XPOST -d '{ "expression" : "2 -"}' 'http://localhost:8080/api/v1/calculate'``` | ```{"error":"некорректное выражение"}```|422|
+| ```curl -XGET -d '{ "expression" : "2 -2"}' 'http://localhost:8080/api/v1/calculate'``` | ```{"error":"Доступен только метод POST"}```|405|
+| ```curl -XPOST -d '{ "expression" : "2 -2"' 'http://localhost:8080/api/v1/calculate'``` | ```{"error":"Ошибка при парсинге JSON"}```|400|
 
 > [!CAUTION]
 > При использовании powershell или cmd могут возникуть проблемы с работой cURL , так как в них нельзя использовать одинарные кавычки. Можете воспользоваться аналогами , такими как : [Postman](https://www.postman.com/) или [WSL](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux) . 
