@@ -5,12 +5,6 @@ REST API для вычисления арифметических выражен
 
 ## Описание
 Этот проект представляет собой веб-сервис, который позволяет пользователям отправлять арифметические выражения и получать результаты их вычисления. Сервис реализует один endpoint, который обрабатывает *POST*-запросы с арифметическими выражениями.
-
-В проекте присуствует:
-- логирование
-- тесты (вы можете их [запустить](internal/transport/http/calc_test.go) для проверки API)
-- конфиг
-- мейкфайл
   
 <div align="center">
   ..................
@@ -35,7 +29,11 @@ REST API для вычисления арифметических выражен
 > ### Эндпоинты
 > | Эндпоинт | Допустимые методы | Описание |
 > | --- | --- | --- |
-> | /api/v1/calculate | *POST* | Получает POST-запрос c телом запроса в формате [JSON](https://ru.wikipedia.org/wiki/JSON), содержащим выражение. Отдает результат или ошибку в формате [JSON](https://ru.wikipedia.org/wiki/JSON) |
+> | /api/v1/calculate | *POST* | Получает POST-запрос c телом запроса в формате [JSON](https://ru.wikipedia.org/wiki/JSON), содержащим выражение. |
+> | /api/v1/expressions | *GET* | Получает все выражения |
+> | /api/v1/expressions/:id | *GET* | Получает выражение по его UUID |
+> | /internal/task | *GET* | Получает простое арифметическое выражение как "задачу" |
+> | /internal/task | *POST* | Принимает результат задачи |
 
 
 
@@ -48,6 +46,19 @@ REST API для вычисления арифметических выражен
 ```shell
 $ go mod tidy
 ```
+> [!IMPORTANT]
+> Перед запуском создайте файл .env в корне проекта. Он должен содержать такие данные как:
+> ```
+> COMPUTING_POWER = 10
+>
+> ORCHESTRATOR_PORT = "50050"
+> AGENT_PORT = "50051"
+>
+> TIME_ADDITION_MS = 20
+> TIME_SUBTRACTION_MS = 10
+> TIME_MULTIPLICATION_MS = 35
+> TIME_DIVISION_MS = 10
+> ```
 
 Для запуска можете воспользоваться Makefile-ом
 ```shell
@@ -58,17 +69,23 @@ $ make run
 $ go run cmd/main.go
 ```
 
-> [!TIP]
-> Для смены порта сервера стоит воспользоваться [конфигом](configs/config.yaml). 
-
 ## Примеры использования с cURL:
 
 | cURL команда                                   | Ответ                                     | *HTTP* код
 |------------------------------------------------|-------------------------------------------| ----------------------------- |
-| ```curl -XPOST -d '{ "expression" : "2 + 2*2"}' 'http://localhost:8080/api/v1/calculate'```  | ```{"result":6} ``` | 200 |
-| ```curl -XPOST -d '{ "expression" : "2 -"}' 'http://localhost:8080/api/v1/calculate'``` | ```{"error":"некорректное выражение"}```|422|
-| ```curl -XGET -d '{ "expression" : "2 -2"}' 'http://localhost:8080/api/v1/calculate'``` | ```{"error":"Доступен только метод POST"}```|405|
-| ```curl -XPOST -d '{ "expression" : "2 -2"' 'http://localhost:8080/api/v1/calculate'``` | ```{"error":"Ошибка при парсинге JSON"}```|400|
+| ```curl -XPOST -d '{ "expression" : "2 + 2 * 2" }' 'http://localhost:50050/api/v1/calculate'```  | ```{"id":"some-id","status":"pending","result":0} ``` | 201 |
+| ```curl -XPOST -d '{ "expression" : "2 @ 2"}' 'http://localhost:50050/api/v1/calculate'``` | ```{"error":"невалидное выражение"}```|422|
+| ```curl -XPOST -d '{ "expression" : "2 -2"' 'http://localhost:50050/api/v1/calculate'``` | ```{"error":"Ошибка при парсинге JSON"}```|400|
+| ```curl --location 'localhost:50050/api/v1/expressions'``` | ```{ "expressions": [ { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> }, { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> } ] }``` | 200 |
+| ```curl --location 'localhost:50050/api/v1/expressions/:id'``` | ```{ "expression": { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> } }``` | 200 |
+| ```curl --location 'localhost:50050/api/v1/expressions/:id'``` | ```{"error":"Извините, выражение не найдено"}```  | 404 |
+| ```curl --location 'localhost:50050/internal/task'``` |  ```{ "task": { "id": <идентификатор задачи>, "arg1": <имя первого аргумента>, "arg2": <имя второго аргумента>, "operation": <операция>, "operation_time": <время выполнения операции> } }``` | 200 |
+| ```curl --location 'localhost:50050/internal/task'``` |  ```{"error":"Нет доступных задач"}``` | 404 |
+| ```curl -XPOST -d '{ "id" : "some_id", "result" : 2.5 }' 'http://localhost:50050/internal/task' ```| ```""```| 200 |
+| ```curl -XPOST -d '{ "id" : "some_id", "result" : 2.5 }' 'http://localhost:50050/internal/task' ```| ```{"error":"задача не найдена"}```| 404 |
+| ```curl -XPOST -d '{ "id" : "some_id", "result" :: 2.5 }' 'http://localhost:50050/internal/task' ```| ```{"error":"Ошибка при парсинге JSON"}```| 400 |
+
+
 
 > [!CAUTION]
 > При использовании powershell или cmd могут возникуть проблемы с работой cURL , так как в них нельзя использовать одинарные кавычки. Можете воспользоваться аналогами , такими как : [Postman](https://www.postman.com/) или [WSL](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux) . 
