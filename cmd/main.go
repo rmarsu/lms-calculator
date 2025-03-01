@@ -1,9 +1,7 @@
 package main
 
-import (
-	"lms-1/internal/app"
-)
+import orchestrator_app "lms-1/internal/orchestrator/app"
 
 func main() {
-	app.Run()
+	orchestrator_app.Run()
 }
