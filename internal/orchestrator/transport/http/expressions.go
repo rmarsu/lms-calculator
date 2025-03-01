@@ -37,13 +37,11 @@ func (h *Handler) addToQueue(c *gin.Context) {
 		Result:     0.0,
 	}
 	h.s.Queue.AddExpression(*expr)
-	go func() {
-		if err := h.s.Queue.RunTask(expr.Id); err != nil {
-			h.s.Queue.RemoveExpression(expr.Id)
-			newErrorResponse(http.StatusUnprocessableEntity, err.Error(), c)
-			return
-		}
-	}()
+	if err := h.s.Queue.RunTask(expr.Id); err != nil {
+		h.s.Queue.RemoveExpression(expr.Id)
+		newErrorResponse(http.StatusUnprocessableEntity, err.Error(), c)
+		return
+	}
 
 	c.JSON(http.StatusCreated, expr)
 }
