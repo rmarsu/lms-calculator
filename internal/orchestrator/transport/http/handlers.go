@@ -32,6 +32,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	internal := r.Group("internal")
 	{
 		internal.GET("/task", h.getTask)
+		internal.POST("/task", h.rollbackResult)
 	}
 
 	return r

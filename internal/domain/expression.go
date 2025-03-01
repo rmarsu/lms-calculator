@@ -9,8 +9,8 @@ const (
 )
 
 type Expression struct {
-	Id         string `json:"id"`
-	Expression string
+	Id         string  `json:"id"`
+	Expression string  `json:"-"`
 	Status     Status  `json:"status"`
 	Result     float64 `json:"result"`
 }
