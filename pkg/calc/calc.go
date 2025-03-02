@@ -35,7 +35,7 @@ func ParseAst(expression string) (ast.Node, error) {
 		return nil, err
 	}
 	if err := validate(node); err != nil {
-
+		return nil, err
 	}
 	return node, nil
 }
