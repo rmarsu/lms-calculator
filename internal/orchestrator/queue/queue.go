@@ -71,8 +71,8 @@ func (q *Queue) GetExpression() (*domain.Expression, bool) {
 }
 
 func (q *Queue) GetTask() (*domain.Task, bool) {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	if len(q.Tasks) == 0 {
 		return nil, false
 	}
@@ -83,9 +83,9 @@ func (q *Queue) GetTask() (*domain.Task, bool) {
 }
 
 func (q *Queue) RunTask(id string) error {
-	q.mu.RLock()
+	q.mu.Lock()
 	expression, ok := q.GetExpressionById(id)
-	q.mu.RUnlock()
+	q.mu.Unlock()
 	if !ok {
 		return errors.New(domain.ErrInvalidExpression)
 	}
