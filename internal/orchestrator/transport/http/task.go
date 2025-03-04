@@ -8,7 +8,7 @@ import (
 )
 
 func (h *Handler) getTask(c *gin.Context) {
-	task, ok := h.s.Queue.GetTask()
+	task, ok := h.s.Task.GetTask()
 	if !ok {
 		newErrorResponse(http.StatusNotFound, domain.ErrNoTasksAvailable, c)
 		return
@@ -22,7 +22,7 @@ func (h *Handler) rollbackResult(c *gin.Context) {
 		newErrorResponse(http.StatusBadRequest, domain.ErrInvalidJSON, c)
 		return
 	}
-	err := h.s.Queue.RollbackResult(input.Id, input.Result)
+	err := h.s.Task.RollbackResult(input.Id, input.Result)
 	if err != nil {
 		newErrorResponse(http.StatusInternalServerError, err.Error(), c)
 		return

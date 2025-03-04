@@ -19,131 +19,152 @@ type Timings struct {
 	TimeDivisionMs       int32
 }
 
-type Queue struct {
+type ExpressionQueue struct {
 	mu          sync.RWMutex
 	Expressions map[string]*domain.Expression
-	Tasks       map[string]*domain.Task
-	Timings
 }
 
-func New(t Timings) *Queue {
-	return &Queue{
+func NewExpressionQueue() *ExpressionQueue {
+	return &ExpressionQueue{
 		mu:          sync.RWMutex{},
 		Expressions: make(map[string]*domain.Expression),
-		Tasks:       make(map[string]*domain.Task),
-		Timings:     t,
 	}
 }
 
-func (q *Queue) AddExpression(expr domain.Expression) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.Expressions[expr.Id] = &expr
+// AddExpression with mu
+func (eq *ExpressionQueue) AddExpression(expr *domain.Expression) {
+	eq.mu.Lock()
+	defer eq.mu.Unlock()
+	eq.Expressions[expr.Id] = expr
 }
 
-func (q *Queue) GetExpressionById(id string) (*domain.Expression, bool) {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-	expr, ok := q.Expressions[id]
+// GetExpressionById with mu
+func (eq *ExpressionQueue) GetExpressionById(id string) (*domain.Expression, bool) {
+	eq.mu.RLock()
+	defer eq.mu.RUnlock()
+	expr, ok := eq.Expressions[id]
 	return expr, ok
 }
 
-func (q *Queue) GetExpressions() []domain.Expression {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
+// GetExpressions with mu
+func (eq *ExpressionQueue) GetExpressions() []domain.Expression {
+	eq.mu.RLock()
+	defer eq.mu.RUnlock()
 	var exprs []domain.Expression
-	for _, expr := range q.Expressions {
+	for _, expr := range eq.Expressions {
 		exprs = append(exprs, *expr)
 	}
 	return exprs
 }
 
-func (q *Queue) GetExpression() (*domain.Expression, bool) {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-	if len(q.Expressions) == 0 {
+// GetExpression with mu
+func (eq *ExpressionQueue) GetExpression() (*domain.Expression, bool) {
+	eq.mu.RLock()
+	defer eq.mu.RUnlock()
+	if len(eq.Expressions) == 0 {
 		return nil, false
 	}
-	for _, expr := range q.Expressions {
+	for _, expr := range eq.Expressions {
 		return expr, true
 	}
 	return nil, false
 }
 
-func (q *Queue) GetTask() (*domain.Task, bool) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if len(q.Tasks) == 0 {
+func (eq *ExpressionQueue) RemoveExpression(id string) {
+	eq.mu.Lock()
+	defer eq.mu.Unlock()
+	delete(eq.Expressions, id)
+}
+
+type TaskQueue struct {
+	mu    sync.RWMutex
+	Tasks map[string]*domain.Task
+	Timings
+}
+
+func NewTaskQueue(t Timings) *TaskQueue {
+	return &TaskQueue{
+		mu:      sync.RWMutex{},
+		Tasks:   make(map[string]*domain.Task),
+		Timings: t,
+	}
+}
+
+// AddTask with mu
+func (tq *TaskQueue) AddTask(task *domain.Task) {
+	tq.mu.Lock()
+	defer tq.mu.Unlock()
+	tq.Tasks[task.Id] = task
+}
+
+// GetTask with mu
+func (tq *TaskQueue) GetTask() (*domain.Task, bool) {
+	tq.mu.RLock()
+	defer tq.mu.RUnlock()
+	if len(tq.Tasks) == 0 {
 		return nil, false
 	}
-	for _, task := range q.Tasks {
+	for _, task := range tq.Tasks {
 		return task, true
 	}
 	return nil, false
 }
 
-func (q *Queue) RunTask(id string) error {
-	q.mu.Lock()
-	expression, ok := q.GetExpressionById(id)
-	q.mu.Unlock()
-	if !ok {
-		return errors.New(domain.ErrInvalidExpression)
-	}
-	expression.Status = domain.StatusInProgress
+// RemoveTask with mu
+func (tq *TaskQueue) RemoveTask(id string) {
+	tq.mu.Lock()
+	defer tq.mu.Unlock()
+	delete(tq.Tasks, id)
+}
 
-	ast, err := calc.ParseAst(expression.Expression)
+// RunTask with mu
+func (tq *TaskQueue) RunTask(eq *ExpressionQueue, expression *domain.Expression) error {
+	tq.mu.Lock()
+	defer tq.mu.Unlock()
+
+	expression.Status = domain.StatusInProgress
+	resChan := make(chan float64)
+
+	astNode, err := calc.ParseAst(expression.Expression)
 	if err != nil {
 		return errors.New(domain.ErrInvalidExpression)
 	}
 
-	resChan := make(chan float64)
-
 	go func() {
 		defer close(resChan)
-		result := q.evaluateAst(ast, resChan)
-		expression.Status = domain.StatusCompleted
-		expression.Result = result
+		result := tq.evaluateAst(astNode, resChan)
+		eq.WriteResultToExpression(expression, result)
 	}()
 
 	return nil
 }
 
-func (q *Queue) RemoveTask(id string) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	delete(q.Tasks, id)
+func (eq *ExpressionQueue) WriteResultToExpression(expression *domain.Expression, result float64) {
+	eq.mu.Lock()
+	defer eq.mu.Unlock()
+	expression.Status = domain.StatusCompleted
+	expression.Result = result
 }
 
-func (q *Queue) RollbackResult(id string, res float64) error {
-	q.mu.RLock()
-	task, ok := q.Tasks[id]
-	q.mu.RUnlock()
-	if !ok {
-		return errors.New(domain.ErrTaskNotFound)
-	}
-
-	task.ResultChan <- res
-	return nil
-}
-
-func (q *Queue) evaluateAst(node ast.Node, res chan float64) float64 {
+// evaluateAst with mu
+func (tq *TaskQueue) evaluateAst(node ast.Node, res chan float64) float64 {
 	switch n := node.(type) {
 	case *ast.ParenExpr:
-		return q.evaluateAst(n.X, res)
+		return tq.evaluateAst(n.X, res)
 	case *ast.BinaryExpr:
-		left := q.evaluateAst(n.X, res)
-		right := q.evaluateAst(n.Y, res)
+		left := tq.evaluateAst(n.X, res)
+		right := tq.evaluateAst(n.Y, res)
 
 		var timing int32
 		switch n.Op {
 		case token.ADD:
-			timing = q.TimeAdditionMs
+			timing = tq.TimeAdditionMs
 		case token.SUB:
-			timing = q.TimeSubtractionMs
+			timing = tq.TimeSubtractionMs
 		case token.MUL:
-			timing = q.TimeMultiplicationMs
+			timing = tq.TimeMultiplicationMs
 		case token.QUO:
-			timing = q.TimeDivisionMs
+			timing = tq.TimeDivisionMs
 		}
 
 		task := &domain.Task{
@@ -154,10 +175,10 @@ func (q *Queue) evaluateAst(node ast.Node, res chan float64) float64 {
 			OperationTimeMs: timing,
 			ResultChan:      res,
 		}
-		q.Tasks[task.Id] = task
+		tq.AddTask(task)
 
 		result := <-res
-		q.RemoveTask(task.Id)
+		tq.RemoveTask(task.Id)
 		return result
 	case *ast.BasicLit:
 		val, _ := strconv.ParseFloat(n.Value, 64)
@@ -167,14 +188,15 @@ func (q *Queue) evaluateAst(node ast.Node, res chan float64) float64 {
 	}
 }
 
-func (q *Queue) RemoveExpression(id string) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	delete(q.Expressions, id)
-}
+// RollbackResult with mu
+func (tq *TaskQueue) RollbackResult(id string, res float64) error {
+	tq.mu.Lock()
+	defer tq.mu.Unlock()
+	task, ok := tq.Tasks[id]
+	if !ok {
+		return errors.New(domain.ErrTaskNotFound)
+	}
 
-func (q *Queue) Size() int {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-	return len(q.Expressions)
+	task.ResultChan <- res
+	return nil
 }

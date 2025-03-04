@@ -37,6 +37,7 @@ func NewServer(cfg *ServerConfig, handler http.Handler) *Server {
 			ReadTimeout:    cfg.ReadTimeout,
 			WriteTimeout:   cfg.WriteTimeout,
 			MaxHeaderBytes: cfg.MaxHeaderMegabytes << 20,
+			IdleTimeout:    time.Second * 5,
 		},
 	}
 }

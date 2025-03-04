@@ -36,8 +36,9 @@ func (h *Handler) addToQueue(c *gin.Context) {
 		Status:     domain.StatusPending,
 		Result:     0.0,
 	}
-	h.s.Queue.AddExpression(*expr)
-	if err := h.s.Queue.RunTask(expr.Id); err != nil {
+	h.s.Queue.AddExpression(expr)
+
+	if err := h.s.Task.RunTask(h.s.Queue, expr); err != nil {
 		h.s.Queue.RemoveExpression(expr.Id)
 		newErrorResponse(http.StatusUnprocessableEntity, err.Error(), c)
 		return
