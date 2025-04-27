@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"lms-1/auth_service/internal/models"
+	"strings"
 )
 
 type sqliteRepository struct {
@@ -20,6 +21,9 @@ func (r *sqliteRepository) Create(u *models.User) error {
 	query := `INSERT INTO users (username, password) VALUES (?, ?)`
 	result, err := r.conn.Exec(query, u.Username, u.Password)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return ErrAlreadyExists
+		}
 		return err
 	}
 	id, err := result.LastInsertId()
@@ -38,7 +42,22 @@ func (r *sqliteRepository) GetById(id int64) (*models.User, error) {
 	err := row.Scan(&user.Id, &user.Username, &user.Password, &user.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, ErrNoRows
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *sqliteRepository) GetByUsername(username string) (*models.User, error) {
+	query := `SELECT id, username, password, timestamp FROM users WHERE username = ?`
+	row := r.conn.QueryRow(query, username)
+
+	var user models.User
+	err := row.Scan(&user.Id, &user.Username, &user.Password, &user.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoRows
 		}
 		return nil, err
 	}
