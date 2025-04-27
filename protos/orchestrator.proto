@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package orchestrator;
+
+option go_package = "/pb_orchestrator";
+
+import "google/api/annotations.proto";
+
+
+service OrchestratorService {
+  rpc GetExpressions(Empty) returns (stream Expression) {
+    option (google.api.http) = {
+      get: "/api/v1/expressions"
+    };
+  }
+
+  rpc GetExpressionById(Id) returns (Expression) {
+    option (google.api.http) = {
+      get: "/api/v1/expressions/{id}"
+    };
+  }
+
+  rpc AddToQueue(StringExpression) returns (Expression) {
+    option (google.api.http) = {
+      post: "/api/v1/calculate"
+      body: "*"
+    };
+  }
+
+  rpc GiveTask(Empty) returns (Task) {
+    option (google.api.http) = {
+      get: "/internal/task"
+    };
+  }
+
+  rpc AnswerTask(Answer) returns (Empty) {
+    option (google.api.http) = {
+      post: "/internal/task"
+      body: "*"
+    };
+  }
+}
+
+message Empty {}
+
+enum status {
+  StatusPending = 0;
+  StatusInProgress = 1;
+  StatusCompleted = 2;
+}
+
+message Id {
+  int64 id = 1;
+}
+
+message StringExpression {
+  string expr = 1;
+}
+
+message Expression {
+  int64 id = 1;
+  status status = 2;
+  float result = 3;
+}
+
+message Task {
+  string id = 1;
+  float arg1 = 2;
+  float arg2 = 3;
+  string op = 4;
+  int64 op_time_ms = 5;
+}
+
+message Answer {
+  string id = 1;
+  float res = 2;
+}
