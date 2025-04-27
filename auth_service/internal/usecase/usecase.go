@@ -8,6 +8,8 @@ import (
 	"lms-1/pkg/jwt"
 	"time"
 	"unicode/utf8"
+
+	"go.uber.org/zap"
 )
 
 type AuthUsecase interface {
@@ -19,24 +21,31 @@ type authUsecase struct {
 	repo   repository.AuthRepository
 	hasher hash.PasswordHasher
 	jwtMgr jwt.TokenManager
+	sugar  *zap.SugaredLogger
 	tll    time.Duration
 }
 
-func NewAuthUsecase(r repository.AuthRepository, h hash.PasswordHasher, j jwt.TokenManager) AuthUsecase {
+func NewAuthUsecase(r repository.AuthRepository, h hash.PasswordHasher, j jwt.TokenManager, s *zap.SugaredLogger) AuthUsecase {
 	return &authUsecase{
 		repo:   r,
 		hasher: h,
 		jwtMgr: j,
+		sugar:  s,
+		tll:    15 * time.Minute,
 	}
 }
 
 func (u *authUsecase) Register(data *models.Register) error {
+	u.sugar.Infow("register attempt", "username", data.Username)
+
 	if err := isPasswordHard(data.Password); err != nil {
+		u.sugar.Warnw("password too weak", "username", data.Username, "error", err)
 		return err
 	}
 
 	hashed_pswrd, err := u.hasher.Hash(data.Password)
 	if err != nil {
+		u.sugar.Errorw("failed to hash password", "username", data.Username, "error", err)
 		return ErrFailedHash
 	}
 
@@ -47,37 +56,48 @@ func (u *authUsecase) Register(data *models.Register) error {
 	})
 	if err != nil {
 		if errors.Is(err, repository.ErrAlreadyExists) {
+			u.sugar.Warnw("user already exists", "username", data.Username)
 			return ErrAlreadyExists
-		} else {
-			return ErrUnknown
 		}
+		u.sugar.Errorw("failed to create user", "username", data.Username, "error", err)
+		return ErrUnknown
 	}
+
+	u.sugar.Infow("user registered successfully", "username", data.Username)
 	return nil
 }
 
 func (u *authUsecase) Login(data *models.Login) (string, error) {
+	u.sugar.Infow("login attempt", "username", data.Username)
+
 	found_user, err := u.repo.GetByUsername(data.Username)
 	if err != nil {
-		switch err {
-		case repository.ErrNoRows:
+		if errors.Is(err, repository.ErrNoRows) {
+			u.sugar.Warnw("user not found", "username", data.Username)
 			return "", ErrNotFound
-		default:
-			return "", ErrUnknown
 		}
+		u.sugar.Errorw("error fetching user", "username", data.Username, "error", err)
+		return "", ErrUnknown
 	}
+
 	hashed_pswrd, err := u.hasher.Hash(data.Password)
 	if err != nil {
+		u.sugar.Errorw("failed to hash password on login", "username", data.Username, "error", err)
 		return "", ErrFailedHash
 	}
 
 	if hashed_pswrd != found_user.Password {
+		u.sugar.Warnw("invalid credentials", "username", data.Username)
 		return "", ErrUnauthenticated
 	}
 
 	token, err := u.jwtMgr.NewJWT(u.tll)
 	if err != nil {
+		u.sugar.Errorw("failed to generate JWT", "username", data.Username, "error", err)
 		return "", ErrUnauthenticated
 	}
+
+	u.sugar.Infow("login successful", "username", data.Username)
 	return token, nil
 }
 

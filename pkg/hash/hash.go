@@ -18,14 +18,14 @@ func NewSHA256Hasher(salt string) *SHA256Hasher {
 	return &SHA256Hasher{salt: salt}
 }
 
-func (h *SHA256Hasher) Hash(password string) ([]byte, error) {
+func (h *SHA256Hasher) Hash(password string) (string, error) {
 	hash := sha256.New()
 
 	if _, err := hash.Write([]byte(password)); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return hash.Sum([]byte(h.salt)), nil
+	return string(hash.Sum([]byte(h.salt))), nil
 }
 
 func (h *SHA256Hasher) Verify(hashedPassword string, password string) bool {
@@ -34,5 +34,5 @@ func (h *SHA256Hasher) Verify(hashedPassword string, password string) bool {
 		return false
 	}
 
-	return hmac.Equal([]byte(hashedPassword), expectedHash)
+	return hmac.Equal([]byte(hashedPassword), []byte(expectedHash))
 }

@@ -11,7 +11,7 @@ import (
 
 type TokenManager interface {
 	NewJWT(ttl time.Duration) (string, error)
-	Parse(accessToken string) (float64, error)
+	Parse(accessToken string) (jwt.Claims, error)
 	NewRefreshToken() (string, error)
 }
 
