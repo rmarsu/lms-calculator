@@ -6,9 +6,9 @@ import (
 )
 
 type Config struct {
-	GrpcPort   string `envconfig:"GRPC_PORT"`
-	RestPort   string `envconfig:"REST_PORT"`
-	SqlitePath string `envconfig:"SQLITE_PATH"`
+	GrpcPort   string `envconfig:"AUTH_GRPC_PORT"`
+	RestPort   string `envconfig:"AUTH_REST_PORT"`
+	SqlitePath string `envconfig:"AUTH_SQLITE_PATH"`
 	JwtSecret  string `envconfig:"JWT_SECRET"`
 	HasherSalt string `envconfig:"HASHER_SALT"`
 }
