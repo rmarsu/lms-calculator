@@ -257,7 +257,7 @@ func (x *Expression) GetResult() float32 {
 
 type Task struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Arg1          float32                `protobuf:"fixed32,2,opt,name=arg1,proto3" json:"arg1,omitempty"`
 	Arg2          float32                `protobuf:"fixed32,3,opt,name=arg2,proto3" json:"arg2,omitempty"`
 	Op            string                 `protobuf:"bytes,4,opt,name=op,proto3" json:"op,omitempty"`
@@ -296,11 +296,11 @@ func (*Task) Descriptor() ([]byte, []int) {
 	return file_protos_orchestrator_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *Task) GetId() string {
+func (x *Task) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 func (x *Task) GetArg1() float32 {
@@ -333,7 +333,7 @@ func (x *Task) GetOpTimeMs() int64 {
 
 type Answer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Res           float32                `protobuf:"fixed32,2,opt,name=res,proto3" json:"res,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -369,11 +369,11 @@ func (*Answer) Descriptor() ([]byte, []int) {
 	return file_protos_orchestrator_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Answer) GetId() string {
+func (x *Answer) GetId() int64 {
 	if x != nil {
 		return x.Id
 	}
-	return ""
+	return 0
 }
 
 func (x *Answer) GetRes() float32 {
@@ -399,14 +399,14 @@ const file_protos_orchestrator_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\x0e2\x14.orchestrator.statusR\x06status\x12\x16\n" +
 	"\x06result\x18\x03 \x01(\x02R\x06result\"l\n" +
 	"\x04Task\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04arg1\x18\x02 \x01(\x02R\x04arg1\x12\x12\n" +
 	"\x04arg2\x18\x03 \x01(\x02R\x04arg2\x12\x0e\n" +
 	"\x02op\x18\x04 \x01(\tR\x02op\x12\x1c\n" +
 	"\n" +
 	"op_time_ms\x18\x05 \x01(\x03R\bopTimeMs\"*\n" +
 	"\x06Answer\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x10\n" +
 	"\x03res\x18\x02 \x01(\x02R\x03res*F\n" +
 	"\x06status\x12\x11\n" +
 	"\rStatusPending\x10\x00\x12\x14\n" +

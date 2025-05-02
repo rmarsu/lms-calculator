@@ -1,15 +1,17 @@
 package main
 
 import (
+	_ "github.com/mattn/go-sqlite3"
+
 	"context"
 	"fmt"
-	"lms-1/auth_service/internal/config"
-	"lms-1/auth_service/internal/repository"
-	"lms-1/auth_service/internal/server"
-	"lms-1/auth_service/internal/usecase"
-	pb_auth "lms-1/pkg/auth"
-	"lms-1/pkg/hash"
+	"lms-1/orchestrator_service/internal/config"
+	"lms-1/orchestrator_service/internal/repository"
+	"lms-1/orchestrator_service/internal/server"
+	interceptor "lms-1/orchestrator_service/internal/server/interceptors"
+	"lms-1/orchestrator_service/internal/usecase"
 	"lms-1/pkg/jwt"
+	pb_orchestrator "lms-1/pkg/orchestrator"
 	"lms-1/pkg/sqlite"
 	"net"
 	"net/http"
@@ -18,12 +20,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -41,21 +41,23 @@ func main() {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
 	cfg := config.MustLoad()
+	jwtMgr, err := jwt.NewManager(cfg.JwtSecret)
+	if err != nil {
+		panic(err)
+	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(interceptor.NewUnaryAuthInterceptor(jwtMgr)),
+	)
 
 	conn := sqlite.MustConnect(cfg.SqlitePath)
 	defer conn.Close()
 
-	repository := repository.NewSqliteRepository(conn)
-	hasher := hash.NewSHA256Hasher(cfg.HasherSalt)
-	jwtMgr, err := jwt.NewManager(cfg.JwtSecret)
-	if err != nil {
-		sugar.Fatalw("Failed to create JWT manager", "error", err)
-	}
+	expr_repository := repository.NewSqliteExpressionsRepository(conn)
+	tasks_repository := repository.NewSqliteTasksRepository(conn)
 
-	uc := usecase.NewAuthUsecase(repository, hasher, jwtMgr, sugar)
-	pb_auth.RegisterAuthServiceServer(grpcServer, server.New(uc))
+	uc := usecase.NewOrchestratorUsecase(expr_repository, tasks_repository, usecase.Timings{}, sugar)
+	pb_orchestrator.RegisterOrchestratorServiceServer(grpcServer, server.New(uc))
 
 	go func() {
 		listener, err := net.Listen("tcp", cfg.GrpcPort)
@@ -70,7 +72,7 @@ func main() {
 
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	if err := pb_auth.RegisterAuthServiceHandlerFromEndpoint(ctx, mux, cfg.GrpcPort, opts); err != nil {
+	if err := pb_orchestrator.RegisterOrchestratorServiceHandlerFromEndpoint(ctx, mux, cfg.GrpcPort, opts); err != nil {
 		sugar.Fatalw("Failed to register gRPC gateway", "error", err)
 	}
 
