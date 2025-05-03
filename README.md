@@ -4,9 +4,9 @@ REST API для вычисления арифметических выражен
 >  Если у вас возникли проблемы - не ставьте мне ноль баллов , а лучше напишите сюда в тг -> @rmarsu
 
 ## Описание
-Этот проект представляет собой веб-сервис, который позволяет пользователям отправлять арифметические выражения и получать результаты их вычисления. Back-end часть состоит из 2 элементов:
+Этот проект представляет собой веб-сервис, который позволяет пользователям отправлять арифметические выражения и получать результаты их вычисления. Back-end часть состоит из 3 микросервисов:
 Сервер (оркестратор) , который принимает арифметическое выражение, переводит его в набор последовательных задач и обеспечивает порядок их выполнения.
-Вычислитель (агент), который может получить от оркестратора задачу, выполнить его и вернуть серверу результат. 
+Вычислитель (агент), который может получить от оркестратора задачу, выполнить его и вернуть серверу результат. Авторизатор - регистрирует и логинит пользователей, отдавая jwt-токен. Общение между агентом и оркестратором происходит через grpc.
 
 <div align="center">
   ..................
@@ -28,19 +28,21 @@ REST API для вычисления арифметических выражен
 </div>
 
 ### Эндпоинты
-| Эндпоинт | Допустимые методы | Описание |
-| --- | --- | --- |
-| /api/v1/calculate | *POST* | Получает POST-запрос c телом запроса в формате [JSON](https://ru.wikipedia.org/wiki/JSON), содержащим выражение. |
-| /api/v1/expressions | *GET* | Получает все выражения |
-| /api/v1/expressions/:id | *GET* | Получает выражение по его UUID |
-| /internal/task | *GET* | Получает простое арифметическое выражение как "задачу" |
-| /internal/task | *POST* | Принимает результат задачи |
+| Эндпоинт | Допустимые методы |Нужна аутентификация?| Описание |
+| --- | --- | --- | --- |
+| /api/v1/calculate | *POST* |✅| Получает POST-запрос c телом запроса в формате [JSON](https://ru.wikipedia.org/wiki/JSON), содержащим выражение. |
+| /api/v1/expressions | *GET* |❌| Получает все выражения |
+| /api/v1/expressions/:id | *GET* |❌|Получает выражение по его UUID |
+| /internal/task | *GET* |❌| Получает простое арифметическое выражение как "задачу" |
+| /internal/task | *POST* |❌| Принимает результат задачи |
+| /api/v1/register  | *POST* | ❌| Регистрирует пользователя в системе |
+| /api/v1/login  | *POST* | ❌| Отдает jwt-токен |
 
 
 
 ## Для запуска
 > [!TIP]
-> Если случилась ошибка ,  <ins>убедитесь что установлена версия Go `1.23.3`</ins>.
+> Если случилась ошибка ,  <ins>убедитесь что установлена версия Go `1.24`</ins>.
 > Последнюю версию можно установить [здесь](https://go.dev/dl/).
 
 Не забудьте установить зависимости командой:
@@ -50,41 +52,56 @@ $ go mod tidy
 > [!IMPORTANT]
 > Перед запуском создайте файл .env в корне проекта. Он должен содержать такие данные как:
 > ```
-> COMPUTING_POWER = 10
+> AUTH_GRPC_PORT=":50051"
+> AUTH_REST_PORT=":8080"
+> AUTH_SQLITE_PATH="./db/auth_db/auth.sqlite"
 >
-> ORCHESTRATOR_PORT = "50050"
-> AGENT_PORT = "50051"
+> ORCHESTRATOR_GRPC_PORT=":50052"
+> ORCHESTRATOR_REST_PORT=":8081"
+> ORCHESTRATOR_SQLITE_PATH="./db/orch_db/orchestrator.sqlite"
 >
-> TIME_ADDITION_MS = 20
-> TIME_SUBTRACTION_MS = 10
-> TIME_MULTIPLICATION_MS = 35
-> TIME_DIVISION_MS = 10
+> JWT_SECRET="supersecretjwtkey"
+> HASHER_SALT="randomsaltvalue123"
+>
+> COMPUTING_POWER=10
+> HOST="localhost"
+>
+> TIME_ADDITION_MS=1000
+> TIME_SUBTRACTION_MS=500
+> TIME_MULTIPLICATION_MS=2
+> TIME_DIVISION_MS=4
 > ```
 
-Для запуска можете воспользоваться Makefile-ом
+Для запуска запустите все 3 сервиса в разных терминалах
 ```shell
-$ make run
+$ go run agent_service/cmd/main.go
+$ go run auth_service/cmd/main.go
+$ go run orchestrator_service/cmd/main.go
 ```
-или запустить вручную:
-```shell
-$ go run cmd/main.go
+или запустите через docker-compose:
 ```
+$ docker-compose up --build
+```
+!! При использовании docker-compose доступен nginx, работающий на localhost:80
 
 ## Примеры использования с cURL:
 
-| cURL команда                                   | Ответ                                     | *HTTP* код
-|------------------------------------------------|-------------------------------------------| ----------------------------- |
-| ```curl -XPOST -d '{ "expression" : "2 + 2 * 2" }' 'http://localhost:50050/api/v1/calculate'```  | ```{"id":"some-id","status":"pending","result":0} ``` | 201 |
-| ```curl -XPOST -d '{ "expression" : "2 @ 2"}' 'http://localhost:50050/api/v1/calculate'``` | ```{"error":"невалидное выражение"}```|422|
-| ```curl -XPOST -d '{ "expression" : "2 -2"' 'http://localhost:50050/api/v1/calculate'``` | ```{"error":"Ошибка при парсинге JSON"}```|400|
-| ```curl --location 'localhost:50050/api/v1/expressions'``` | ```{ "expressions": [ { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> }, { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> } ] }``` | 200 |
-| ```curl --location 'localhost:50050/api/v1/expressions/:id'``` | ```{ "expression": { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> } }``` | 200 |
-| ```curl --location 'localhost:50050/api/v1/expressions/:id'``` | ```{"error":"Извините, выражение не найдено"}```  | 404 |
-| ```curl --location 'localhost:50050/internal/task'``` |  ```{ "task": { "id": <идентификатор задачи>, "arg1": <имя первого аргумента>, "arg2": <имя второго аргумента>, "operation": <операция>, "operation_time": <время выполнения операции> } }``` | 200 |
-| ```curl --location 'localhost:50050/internal/task'``` |  ```{"error":"Нет доступных задач"}``` | 404 |
-| ```curl -XPOST -d '{ "id" : "some_id", "result" : 2.5 }' 'http://localhost:50050/internal/task' ```| ```""```| 200 |
-| ```curl -XPOST -d '{ "id" : "some_id", "result" : 2.5 }' 'http://localhost:50050/internal/task' ```| ```{"error":"задача не найдена"}```| 404 |
-| ```curl -XPOST -d '{ "id" : "some_id", "result" :: 2.5 }' 'http://localhost:50050/internal/task' ```| ```{"error":"Ошибка при парсинге JSON"}```| 400 |
+| cURL команда                                   | Ответ                                     |
+|------------------------------------------------|-------------------------------------------|
+| ```curl -XPOST -H 'Authorization: Bearer YOUR-TOKEN' -d '{ "expr" : "2+2*2"}' 'http://localhost:8081/api/v1/calculate'```  | ```{"id":"4", "status":"StatusPending", "result":0} ```|
+| ```curl -XPOST -H 'Authorization: Bearer YOUR-TOKEN' -d '{ "expr" : "2+2@2"}' 'http://localhost:8081/api/v1/calculate'``` | ```{"code":2, "message":"invalid expression", "details":[]}```|
+| ```curl -XPOST -H 'Authorization: Bearer YOUR-TOKEN' -d '{ "expr" : "2+2+2",}' 'http://localhost:8081/api/v1/calculate'``` | ```{    "code": 3,    "message": "invalid character '}' looking for beginning of object key string",    "details": []}```|
+| ```curl --location 'localhost:8081/api/v1/expressions'``` | ```{ "expressions": [ { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> }, { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> } ] }``` |
+| ```curl --location 'localhost:8081/api/v1/expressions/2'``` | ```{ "expression": { "id": <идентификатор выражения>, "status": <статус вычисления выражения>, "result": <результат выражения> } }```| 
+| ```curl --location 'localhost:8081/api/v1/expressions/4184237'``` | ```{"code":2, "message":"expression not found", "details":[]}```|  
+|```curl -XPOST -d '{ "username" : "silly_username", "password" : "12345678"}' 'http://localhost:8080/api/v1/register'```| ```{}``` |
+|```curl -XPOST -d '{ "username" : "silly_username", "password" : "12345678"}' 'http://localhost:8080/api/v1/register'```| ```{"code":6,"message":"user already exists","details":[]}``` |
+|```curl -XPOST -d '{ "username" : "silly_username", "password" : "123456"}' 'http://localhost:8080/api/v1/register'```| ```{"code":10,"message":"password is too short","details":[]}``` |
+|```curl -XPOST -d '{ "username" : "silly_username", "password" : "12345678"}' 'http://localhost:8080/api/v1/login'```| ```{"token":"___"}``` | 200 |
+|```curl -XPOST -d '{ "username" : "silly_username", "password" : "12345578"}' 'http://localhost:8080/api/v1/login'```| ```{"code":16,"message":"password is incorrect","details":[]}``` |
+|```curl -XPOST -d '{ "username" : "silly_user", "password" : "12345578"}' 'http://localhost:8080/api/v1/login'```| ```{"code":5,"message":"user with this username not found","details":[]}``` |
+
+
 
 
 
