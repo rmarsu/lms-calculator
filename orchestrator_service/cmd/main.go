@@ -56,7 +56,12 @@ func main() {
 	expr_repository := repository.NewSqliteExpressionsRepository(conn)
 	tasks_repository := repository.NewSqliteTasksRepository(conn)
 
-	uc := usecase.NewOrchestratorUsecase(expr_repository, tasks_repository, usecase.Timings{}, sugar)
+	uc := usecase.NewOrchestratorUsecase(expr_repository, tasks_repository, usecase.Timings{
+		TimeAdditionMs:       cfg.TimeAdditionMs,
+		TimeSubtractionMs:    cfg.TimeSubtractionMs,
+		TimeMultiplicationMs: cfg.TimeMultiplicationMs,
+		TimeDivisionMs:       cfg.TimeDivisionMs,
+	}, sugar)
 	pb_orchestrator.RegisterOrchestratorServiceServer(grpcServer, server.New(uc))
 
 	go func() {

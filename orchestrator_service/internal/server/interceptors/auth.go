@@ -12,8 +12,6 @@ import (
 
 func NewUnaryAuthInterceptor(jwtMgr *jwt.Manager) grpc.UnaryServerInterceptor {
 	protectedMethods := map[string]bool{
-		"/orchestrator.OrchestratorService/GetExpressions": true,
-		"/orchestrator.OrchestratorService/GetExpressionById": true,
 		"/orchestrator.OrchestratorService/AddToQueue": true,
 	}
 

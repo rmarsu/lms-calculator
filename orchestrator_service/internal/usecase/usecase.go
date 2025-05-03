@@ -1,6 +1,8 @@
 package usecase
 
 import (
+	"database/sql"
+	"errors"
 	"go/ast"
 	"go/token"
 	"lms-1/orchestrator_service/internal/models"
@@ -128,29 +130,28 @@ func (uc *orchestratorUsecase) RunExpression(expr *models.Expression) (int64, er
 func (uc *orchestratorUsecase) AnswerTask(id int64, res float64) error {
 	uc.mu.Lock()
 	ch, ok := uc.chansMap[id]
+	if ok {
+		delete(uc.chansMap, id)
+	}
 	uc.mu.Unlock()
 
 	if !ok {
-		uc.sugar.Warnw("Attempted to answer non-existent or already-answered task", "task_id", id)
+		uc.sugar.Warnw("attempted to answer non-existent or already-answered task", "task_id", id)
 		return ErrTaskDoNotExist
 	}
 
-	defer func() {
-		uc.mu.Lock()
-		close(ch)
-		delete(uc.chansMap, id)
-		uc.mu.Unlock()
-	}()
-
 	ch <- res
+	close(ch)
 	return nil
 }
-
 
 func (uc *orchestratorUsecase) GiveTask() (*models.Task, error) {
 	uc.sugar.Info("Fetching next task")
 	tsk, err := uc.tasks_repo.GetByDate()
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrTaskDoNotExist
+		}
 		uc.sugar.Errorw("Failed to fetch task", "error", err)
 		return nil, ErrDeadDB
 	}
@@ -162,6 +163,9 @@ func (uc *orchestratorUsecase) GetExpressions() ([]models.Expression, error) {
 	uc.sugar.Info("Fetching all expressions")
 	exprs, err := uc.expr_repo.GetExpressions()
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrExprNotFound
+		}
 		uc.sugar.Errorw("Failed to fetch expressions", "error", err)
 		return nil, ErrDeadDB
 	}
@@ -173,6 +177,9 @@ func (uc *orchestratorUsecase) GetExpressionById(id int64) (*models.Expression, 
 
 	expr, err := uc.expr_repo.GetExprById(id)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrExprNotFound
+		}
 		uc.sugar.Errorw("Failed to fetch expression", "error", err, "expression_id", id)
 		return nil, ErrDeadDB
 	}

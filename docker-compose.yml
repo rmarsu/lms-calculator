@@ -1,0 +1,66 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth
+      - orchestrator
+    networks:
+      - backend
+      
+  auth:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.auth
+    container_name: auth_service
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+    environment:
+      - AUTH_GRPC_PORT=:50051
+      - AUTH_REST_PORT=:8080
+      - AUTH_SQLITE_PATH=./db/auth_db/auth.sqlite
+      - JWT_SECRET=supersecretjwtkey
+      - HASHER_SALT=randomsaltvalue123
+
+  agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    container_name: agent_service
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
+    environment:
+      - ORCHESTRATOR_GRPC_PORT=:50052
+      - COMPUTING_POWER=10
+      - HOST=orchestrator_service
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.orch
+    container_name: orchestrator_service
+    ports:
+      - "8081:8081"
+    networks:
+      - backend
+    environment:
+      - ORCHESTRATOR_GRPC_PORT=:50052
+      - ORCHESTRATOR_REST_PORT=:8081
+      - ORCHESTRATOR_SQLITE_PATH=./db/orch_db/orchestrator.sqlite
+      - JWT_SECRET=supersecretjwtkey
+      - TIME_ADDITION_MS=1000
+      - TIME_SUBTRACTION_MS=500
+      - TIME_MULTIPLICATION_MS=2
+      - TIME_DIVISION_MS=4
+
+networks:
+  backend:
+    driver: bridge
