@@ -9,14 +9,14 @@ import "google/api/annotations.proto";
 service AuthService {
   rpc Register(Identity) returns (Empty) {
     option (google.api.http) = {
-      post: "/v1/register"
+      post: "/api/v1/register"
       body: "*"
     };
   }
 
   rpc Login(Identity) returns (Token) {
     option (google.api.http) = {
-      post: "/v1/login"
+      post: "/api/v1/login"
       body: "*"
     };
   }
